@@ -89,6 +89,8 @@ def _clean(v, nd: int = 2):
 def snapshot() -> Snapshot:
     """What every price answer reads: live when live prices apply, otherwise end of day (never raises because live failed)."""
     base = eod_snapshot()
+    if base.n_dates == 0:                              # already a live Angel One table
+        return base
     try:
         from backend.app.services.data import live_prices
         return live_prices.overlay(base) or base
@@ -101,6 +103,9 @@ def eod_snapshot() -> Snapshot:
     global _snap, _snap_key
     latest = bars.latest_date()
     if latest is None:
+        from backend.app.services.data import angel_board
+        if angel_board.available():
+            return angel_board.snapshot()              # no stock.db: build the table from Angel One quotes
         raise NoMarketData("Market data has not been loaded yet. Run: python -m scripts.refresh_bhavcopy "
                            "(the app also loads it in the background after startup).")
     key = (latest, bars.count_bars())
@@ -170,6 +175,9 @@ def _records(df: pd.DataFrame, cols: list[str]) -> list[dict]:
 
 
 def _meta(s: Snapshot) -> dict:
+    if s.mode == "live" and s.n_dates == 0:
+        return {"source": "Angel One SmartAPI (market quotes)", "as_of": f"{s.live_at} ({'live' if s.live_market_open else 'latest price, market closed'})",
+                "data_date": s.as_of.isoformat(), "price_mode": "live"}
     if s.mode == "live":
         age = f", up to {s.live_oldest_sec}s old" if s.live_oldest_sec is not None else ""
         state = "live" if s.live_market_open else "latest price, market closed"
@@ -179,6 +187,8 @@ def _meta(s: Snapshot) -> dict:
 
 
 def _history_note(s: Snapshot) -> str | None:
+    if s.n_dates == 0:
+        return "Return and 52-week figures are unavailable: prices come from Angel One quotes with no stored history."
     if s.n_dates < NEED["52W"]:
         return (f"Only {s.n_dates} trading days of history are stored, so 1Y return and 52-week figures are "
                 f"unavailable. Load more with: python -m scripts.refresh_bhavcopy --days 400")

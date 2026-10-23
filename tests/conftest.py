@@ -58,3 +58,10 @@ def env(tmp_path, monkeypatch):
 
     monkeypatch.setattr(tools, "run_tool", fake_tool)
     return SimpleNamespace(fake=fake, tmp=tmp_path, settings=settings)
+
+
+@pytest.fixture(autouse=True)
+def _no_angel_board(monkeypatch):
+    """Tests assume no Angel One board unless they opt in (a developer .env may hold real broker keys)."""
+    from backend.app.services.data import angel_board
+    monkeypatch.setattr(angel_board, "available", lambda: False)

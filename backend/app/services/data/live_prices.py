@@ -116,7 +116,7 @@ def _store(found: dict[str, dict]) -> None:
         for sym, f in found.items():
             _board[sym] = {"price": f["ltp"], "prev_close": f.get("prev_close"), "open": f.get("open"), "high": f.get("high"),
                            "low": f.get("low"), "volume": f.get("volume"), "avg_price": f.get("avg_price"),
-                           "feed_time": f.get("feed_time"), "at": now}
+                           "feed_time": f.get("feed_time"), "w52_high": f.get("w52_high"), "w52_low": f.get("w52_low"), "at": now}
         _version += 1
 
 
@@ -294,7 +294,7 @@ class Refresher:
             idle = True
             try:
                 base = market_data.eod_snapshot()
-                if (time.time() - _demand_at[0] < settings.prices_demand_window_sec and configured() and not blocked_for()
+                if base.n_dates and (time.time() - _demand_at[0] < settings.prices_demand_window_sec and configured() and not blocked_for()
                         and in_window(now_ist(), base.as_of)):
                     idle = False
                     refresh_universe_once()

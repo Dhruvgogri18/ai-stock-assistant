@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     prices_min_coverage: float = 0.95       # share of stocks that must have a fresh quote before screens switch to live prices
     prices_demand_window_sec: int = 600     # keep refreshing the whole market this long after the last screener/movers request
 
+    # Build the end-of-day market snapshot at startup (uses a lot of RAM; set false on small hosts)
+    warm_snapshot: bool = True
+
     # ---- product ----
     app_name: str = "Stock Research"
     user_name: str = ""

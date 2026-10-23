@@ -317,7 +317,9 @@ def parse_quote_response(data: dict, by_token: dict[str, str]) -> dict[str, dict
             continue
         out[sym] = {"ltp": ltp, "open": _num(row.get("open")), "high": _num(row.get("high")), "low": _num(row.get("low")),
                     "prev_close": _num(row.get("close")), "volume": _num(row.get("tradeVolume")),
-                    "avg_price": _num(row.get("avgPrice")), "feed_time": row.get("exchFeedTime") or row.get("exchTradeTime")}
+                    "avg_price": _num(row.get("avgPrice")),
+                    "w52_high": _num(row.get("52WeekHigh") or row.get("52WeekHighPrice")),
+                    "w52_low": _num(row.get("52WeekLow") or row.get("52WeekLowPrice")), "feed_time": row.get("exchFeedTime") or row.get("exchTradeTime")}
     return out
 
 
