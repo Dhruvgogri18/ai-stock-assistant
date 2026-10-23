@@ -81,15 +81,24 @@ def _client(api_key: str, base_url: str, timeout: float) -> OpenAI:
 
 
 def _call(p: Provider, kwargs: dict, temperature: float | None):
+    import time
     client = _client(p.api_key, p.base_url, settings.llm_timeout)
-    try:
-        return client.chat.completions.create(**kwargs)
-    except Exception as exc:
-        # Some reasoning models reject `temperature`; retry once without it.
-        if temperature is not None and "temperature" in str(exc).lower():
-            kwargs.pop("temperature", None)
+    for attempt in range(3):
+        try:
             return client.chat.completions.create(**kwargs)
-        raise
+        except Exception as exc:
+            text = str(exc).lower()
+            # Some reasoning models reject `temperature`; retry once without it.
+            if temperature is not None and "temperature" in text and "temperature" in kwargs:
+                kwargs.pop("temperature", None)
+                continue
+            # Free tiers return 503 (busy) / 429 (rate limit) in short bursts: wait briefly and retry.
+            busy = any(c in text for c in ("503", "429", "unavailable", "overloaded", "high demand"))
+            if busy and attempt < 2 and p.name != "gateway":
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            raise
+    raise LLMError("unreachable")
 
 
 def chat_completion(
