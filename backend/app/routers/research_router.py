@@ -21,6 +21,11 @@ def health() -> dict:
             "data_provider": settings.data_provider}
 
 
+@router.get("/llm-check")
+def llm_check() -> dict:
+    return {"providers": gw.diagnose()}
+
+
 @router.get("/me")
 def me() -> dict:
     return {"name": settings.user_name, "app_name": settings.app_name, "conversations": repo.count_sessions()}

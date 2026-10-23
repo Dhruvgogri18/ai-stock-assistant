@@ -6,10 +6,12 @@ Works with any OpenAI-compatible gateway (LLM_BASE_URL).
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
+import httpx
 from openai import OpenAI
 
 from backend.app.config.settings import settings
@@ -74,7 +76,8 @@ def fast_model() -> str:
 
 @lru_cache(maxsize=8)
 def _client(api_key: str, base_url: str, timeout: float) -> OpenAI:
-    return OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=0)
+    return OpenAI(api_key=api_key, base_url=base_url, max_retries=0,
+                  timeout=httpx.Timeout(timeout, connect=10.0))
 
 
 def _call(p: Provider, kwargs: dict, temperature: float | None):
@@ -121,6 +124,7 @@ def chat_completion(
             msg = f"{p.name}: {type(exc).__name__}: {exc}"
             llm_trace.log_llm_response(handle=handle, error=msg)
             errors.append(msg[:300])
+            print(f"[llm] {msg[:500]}", file=sys.stderr, flush=True)
     if resp is None:
         raise LLMError(" | ".join(errors))
     model = used_model
@@ -154,3 +158,18 @@ def chat_json(messages: list[dict], **kw) -> dict:
     if start < 0 or end < start:
         raise ValueError(f"model did not return JSON: {text[:200]!r}")
     return json.loads(text[start : end + 1])
+
+
+def diagnose() -> list[dict]:
+    """Send a tiny request to each configured provider and report what happened (for /api/llm-check)."""
+    import time
+    out = []
+    for p in _providers():
+        t = time.perf_counter()
+        try:
+            _call(p, {"model": p.model, "messages": [{"role": "user", "content": "Say OK"}], "max_tokens": 5}, None)
+            out.append({"provider": p.name, "model": p.model, "ok": True, "ms": int((time.perf_counter() - t) * 1000)})
+        except Exception as exc:  # noqa: BLE001
+            out.append({"provider": p.name, "model": p.model, "base_url": p.base_url, "ok": False,
+                        "ms": int((time.perf_counter() - t) * 1000), "error": f"{type(exc).__name__}: {exc}"[:400]})
+    return out
