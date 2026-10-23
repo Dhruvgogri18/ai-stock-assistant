@@ -1,0 +1,54 @@
+/* Mobile / small-screen polish. Loaded last so it wins over the other stylesheets. */
+html,body{height:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}
+#app{height:100vh;height:100dvh}
+button,.nav-item,.chip{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+
+@media (max-width:820px){
+  /* iOS zooms into inputs under 16px */
+  input,textarea,select,.composer textarea,.dlg input{font-size:16px!important}
+
+  #sidebar{width:min(84vw,310px);padding-top:max(10px,env(safe-area-inset-top))}
+  #app.collapsed #sidebar{margin-left:-110vw}
+  .nav-item{padding:11px 10px}.chat-item{padding:10px 8px}
+  .nav-item kbd{display:none}
+  .icon-btn{width:40px;height:40px}
+  .menu-btn{left:6px;top:4px}
+  .topbar{height:52px;padding-left:52px;padding-right:10px}
+  .share-btn{padding:9px 12px}
+
+  #landing{padding:0 14px 6vh;justify-content:flex-start;padding-top:18vh}
+  #landing h1{font-size:23px;margin-bottom:18px}
+  .chips{gap:8px;margin-top:18px}.chip{padding:9px 12px;font-size:13px}
+
+  .composer{border-radius:16px;padding:12px 12px 8px}
+  .c-row{margin-top:10px}
+  .send,.mic{width:40px;height:38px}.pill,.pill button{height:38px}.pill button{width:38px}
+
+  #thread{padding:14px 14px calc(170px + env(safe-area-inset-bottom))}
+  .dock{padding:26px 12px calc(6px + env(safe-area-inset-bottom))}
+  .disclaimer{font-size:10.5px}
+  .u-bubble{max-width:90%;padding:9px 14px}
+  .a-msg{margin-bottom:26px}
+  .md h1{font-size:17px}
+  .md pre,.md table{max-width:100%}
+  .md{overflow-wrap:anywhere}
+
+  /* wide tables scroll inside their card instead of stretching the page */
+  .tbl,.sc-wrap,.scr-table,.ws-table{-webkit-overflow-scrolling:touch;max-width:100%}
+  .sc-wrap{margin:0 4px}.sc-wrap.big{max-height:60vh}
+  .sc-bar{flex-wrap:wrap}
+  .steps div{flex-wrap:wrap}
+  .chart{padding:10px 8px 6px}.chart .tip{white-space:normal;max-width:70vw}
+
+  /* dialogs become near-full-width sheets */
+  #modal{padding-top:calc(env(safe-area-inset-top) + 6vh)}
+  .dlg,.dlg.wide{width:94vw}.dlg .list{max-height:60vh}
+  #toast{bottom:calc(100px + env(safe-area-inset-bottom));max-width:90vw}
+  #popover{max-width:92vw}
+}
+@media (max-width:480px){
+  body{font-size:14.5px}
+  .ws-page,.scr-page,.scr-detail{padding-left:12px;padding-right:12px}
+  .scr-refine{padding-bottom:env(safe-area-inset-bottom)}
+}
+@media (hover:none){ .nav-item:hover,.chip:hover,.icon-btn:hover{background:inherit} }

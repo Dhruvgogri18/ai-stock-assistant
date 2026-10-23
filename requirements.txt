@@ -1,0 +1,16 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic-settings>=2.4
+langgraph>=0.2          # turn graph (services/orchestration/graph.py)
+openai>=1.40            # OpenAI-compatible gateway client
+httpx>=0.27             # IndianAPI and other HTTP providers
+pandas>=2.2
+yfinance>=0.2.54        # bootstrap / fallback only (unofficial)
+# Optional: more accurate *estimated* token counts when the gateway returns no usage
+# tiktoken>=0.7
+# Optional Postgres warehouse:
+# psycopg2-binary>=2.9
+# Dev:
+# pytest>=8
+pyotp>=2.9          # Angel One TOTP login
+pytest
