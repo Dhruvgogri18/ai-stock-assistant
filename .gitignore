@@ -2,9 +2,9 @@
 .venv/
 __pycache__/
 *.pyc
-logs/
-data/
-demo_data/
+/logs/
+/data/
+/demo_data/
 .pytest_cache/
 *.db
 *.db.gz
