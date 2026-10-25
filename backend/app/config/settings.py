@@ -82,6 +82,15 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 1200
     max_tool_rounds: int = 2  # fewer model calls per chat turn (cost control)
     router_enabled: bool = True
+    # Optional fallbacks (gateway_client tries these if primary fails / is unset)
+    fallback_llm_api_key: str = ""
+    fallback_llm_base_url: str = ""
+    fallback_llm_model: str = ""
+    fallback_llm_fast_model: str = ""
+    fallback2_llm_api_key: str = ""
+    fallback2_llm_base_url: str = ""
+    fallback2_llm_model: str = ""
+    fallback2_llm_fast_model: str = ""
 
     # ---- LLM logging ----
     llm_log: bool = True
