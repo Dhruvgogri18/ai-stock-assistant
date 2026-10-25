@@ -95,8 +95,13 @@ def _call(p: Provider, kwargs: dict, temperature: float | None):
             # Free tiers return 503 (busy) / 429 (rate limit) in short bursts: wait briefly and retry.
             busy = any(c in text for c in ("503", "429", "unavailable", "overloaded", "high demand"))
             if busy and attempt < 2 and p.name != "gateway":
-                time.sleep(1.5 * (attempt + 1))
-                continue
+                import re
+                m = re.search(r"try again in ([0-9.]+)\s*(ms|s)", text)      # e.g. Groq: "Please try again in 15.68s"
+                hinted = (float(m.group(1)) / (1000 if m.group(2) == "ms" else 1)) if m else None
+                wait = (hinted + 0.5) if hinted is not None else 1.5 * (attempt + 1)
+                if wait <= 20:
+                    time.sleep(wait)
+                    continue
             raise
     raise LLMError("unreachable")
 
@@ -179,6 +184,13 @@ def diagnose() -> list[dict]:
             _call(p, {"model": p.model, "messages": [{"role": "user", "content": "Say OK"}], "max_tokens": 5}, None)
             out.append({"provider": p.name, "model": p.model, "ok": True, "ms": int((time.perf_counter() - t) * 1000)})
         except Exception as exc:  # noqa: BLE001
-            out.append({"provider": p.name, "model": p.model, "base_url": p.base_url, "ok": False,
-                        "ms": int((time.perf_counter() - t) * 1000), "error": f"{type(exc).__name__}: {exc}"[:400]})
+            row = {"provider": p.name, "model": p.model, "base_url": p.base_url, "ok": False,
+                   "ms": int((time.perf_counter() - t) * 1000), "error": f"{type(exc).__name__}: {exc}"[:400]}
+            if "404" in str(exc) or "not_found" in str(exc).lower() or "does not exist" in str(exc).lower():
+                try:   # the model name is wrong/retired: show what this key can actually use
+                    ids = sorted(m.id.replace("models/", "") for m in _client(p.api_key, p.base_url, 20.0).models.list())
+                    row["models_you_can_use"] = ids[:60]
+                except Exception as e2:  # noqa: BLE001
+                    row["models_error"] = f"{type(e2).__name__}: {e2}"[:200]
+            out.append(row)
     return out

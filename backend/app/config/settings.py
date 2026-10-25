@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     alerts_live_pause_sec: float = 0.3      # pause between per-symbol price calls, to stay inside broker rate limits
     alerts_live_max_symbols: int = 60       # most symbols looked up per poll
 
+    # Build the end-of-day market snapshot at startup (uses a lot of RAM; set false on small hosts)
+    warm_snapshot: bool = True
+
     # ---- company fundamentals ----
     fundamentals_refresh_cooldown_min: int = 30   # the company page's "load statements" button: minimum minutes between refreshes of one stock
 

@@ -46,5 +46,19 @@ services:
         sync: false
       - key: CORS_ALLOW_ORIGINS
         value: "*"
+      - key: WARM_SNAPSHOT
+        value: "false"
+      - key: FALLBACK_LLM_API_KEY
+        sync: false
+      - key: FALLBACK_LLM_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta/openai/
+      - key: FALLBACK_LLM_MODEL
+        sync: false
+      - key: FALLBACK2_LLM_API_KEY
+        sync: false
+      - key: FALLBACK2_LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: FALLBACK2_LLM_MODEL
+        sync: false
       - key: APP_NAME
         value: Stock Research

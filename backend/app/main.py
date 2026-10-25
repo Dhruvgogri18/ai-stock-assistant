@@ -23,7 +23,7 @@ from backend.app.routers.research_router import router as research_router
 from backend.app.routers.screener_router import router as screener_router
 from backend.app.routers.session_router import router as session_router
 from backend.app.services.alerts import engine as alert_engine, live as alert_live
-from backend.app.services.data import bhavcopy, live_prices, market_data
+from backend.app.services.data import angel_board, bhavcopy, live_prices, market_data
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
 
@@ -43,10 +43,12 @@ async def lifespan(_: FastAPI):
     except Exception as e:  # noqa: BLE001
         print("warehouse init:", e)
     # Build the end-of-day snapshot in the background (slow on a large bars table) so the first Screener visit is fast.
-    threading.Thread(target=_warm_snapshot, daemon=True, name="snapshot-warm").start()
+    if settings.warm_snapshot:
+        threading.Thread(target=_warm_snapshot, daemon=True, name="snapshot-warm").start()
     alert_engine.loop.start(settings.alerts_check_interval_min)
     alert_live.loop.start(settings.alerts_live_interval_sec)
     live_prices.refresher.start()
+    angel_board.start_if_needed()      # no stock.db data? build the market table from Angel One
     # Keep NSE end-of-day data fresh: catches up on startup, then re-checks after each market close.
     # (No provider API calls happen at startup, so a restart never spends IndianAPI quota.)
     if settings.bhavcopy_auto_refresh:
@@ -56,6 +58,7 @@ async def lifespan(_: FastAPI):
     alert_engine.loop.stop()
     alert_live.loop.stop()
     live_prices.refresher.stop()
+    angel_board.stop()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)

@@ -7,6 +7,7 @@ Does NOT provide fundamentals (P/E, ROE, statements, shareholding).
 """
 from __future__ import annotations
 
+import json
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -108,16 +109,43 @@ def _meta() -> dict:
     }
 
 
+_KEEP_EXCH = {"NSE", "NSE_CM", "NSECM"}
+
+
+def _filter_master(raw: bytes) -> list[dict]:
+    """Parse Angel's instrument dump one record at a time and keep only NSE rows (and only the fields we use).
+
+    The full file covers every exchange incl. all futures/options (100k+ rows); loading it whole costs hundreds of MB,
+    which gets a 512 MB host killed.
+    """
+    text = raw.decode("utf-8")
+    dec = json.JSONDecoder()
+    i, n = text.index("[") + 1, len(text)
+    out: list[dict] = []
+    while i < n:
+        while i < n and text[i] in " \t\r\n,":
+            i += 1
+        if i >= n or text[i] == "]":
+            break
+        row, i = dec.raw_decode(text, i)
+        if isinstance(row, dict) and str(row.get("exch_seg") or "").upper() in _KEEP_EXCH:
+            out.append({"token": row.get("token"), "symbol": row.get("symbol"),
+                        "name": row.get("name"), "exch_seg": row.get("exch_seg")})
+    return out
+
+
 def _load_master(force: bool = False) -> list[dict]:
-    """Full instrument dump from Angel (cached ~12h)."""
+    """NSE instruments from Angel's dump (cached ~12h)."""
     global _master, _master_loaded_at
     if _master is not None and not force and (time.time() - _master_loaded_at) < 12 * 3600:
         return _master
     with httpx.Client(timeout=120.0) as client:
         r = client.get(SCRIP_MASTER)
         r.raise_for_status()
-        data = r.json()
-    if not isinstance(data, list):
+        raw = r.content
+    data = _filter_master(raw)
+    del raw
+    if not data:
         raise ValueError("Unexpected scrip master format")
     _master = data
     _master_loaded_at = time.time()
