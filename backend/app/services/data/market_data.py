@@ -113,12 +113,10 @@ def eod_snapshot() -> Snapshot:
         if _snap is not None and _snap_key == key:
             return _snap
 
-    w = bars.bars_window(260)
-    dates = sorted(w["date"].unique())
+    inp = bars.snapshot_inputs(260)
+    dates, last, piv = inp["dates"], inp["last"], inp["piv"]
     n = len(dates)
     latest_s = dates[-1]
-    last = w[w["date"] == latest_s].set_index("symbol")
-    piv = w.pivot_table(index="date", columns="symbol", values="close", aggfunc="last").sort_index().ffill()
 
     out = pd.DataFrame(index=last.index)
     out["series"] = last["series"]
@@ -144,8 +142,7 @@ def eod_snapshot() -> Snapshot:
 
     out["_b1m"], out["_b3m"], out["_b1y"] = live_base(21, NEED["1M"]), live_base(63, NEED["3M"]), live_base(250, NEED["1Y"])
     if n >= NEED["52W"]:
-        w52 = w[w["date"] >= dates[-min(n, 250)]]
-        hi, lo = w52.groupby("symbol")["high"].max(), w52.groupby("symbol")["low"].min()
+        hi, lo = bars.range_52w(dates[-min(n, 250)])
         out["52W High"], out["52W Low"] = hi.reindex(out.index), lo.reindex(out.index)
         out["% From 52W High"] = (out["LTP"] / out["52W High"] - 1) * 100
         out["% From 52W Low"] = (out["LTP"] / out["52W Low"] - 1) * 100

@@ -179,6 +179,37 @@ def log_status(kind: str, key: str) -> dict | None:
     return dict(r) if r else None
 
 
+def snapshot_inputs(days: int = 260) -> dict | None:
+    """Memory-lean inputs for the market snapshot: the latest day's rows, a (date x symbol) close matrix for the
+    symbols listed on the latest day (forward-filled), and the dates. Never holds all `days` x symbols rows in pandas
+    (that costs several hundred MB and gets a 512 MB host killed)."""
+    import numpy as np
+    with session() as c:
+        dates = sorted(r["date"] for r in c.execute("SELECT DISTINCT date FROM daily_bars ORDER BY date DESC LIMIT ?", (days,)))
+        if not dates:
+            return None
+        last = pd.read_sql_query(
+            "SELECT symbol,date,series,prev_close,open,high,low,close,volume,turnover_cr,deliv_pct "
+            "FROM daily_bars WHERE date = ?", c, params=(dates[-1],)).set_index("symbol")
+        cols = {s: i for i, s in enumerate(dict.fromkeys(last.index))}
+        rows = {d: i for i, d in enumerate(dates)}
+        arr = np.full((len(dates), len(cols)), np.nan)
+        for d, sym, close in c.execute("SELECT date,symbol,close FROM daily_bars WHERE date >= ?", (dates[0],)):
+            j = cols.get(sym)
+            if j is not None and close is not None:
+                arr[rows[d], j] = close
+    piv = pd.DataFrame(arr, index=dates, columns=list(cols)).ffill()
+    return {"dates": dates, "last": last, "piv": piv}
+
+
+def range_52w(from_date: str) -> tuple[pd.Series, pd.Series]:
+    """Highest high / lowest low per symbol since `from_date` (aggregated inside SQLite)."""
+    with session() as c:
+        df = pd.read_sql_query("SELECT symbol, MAX(high) AS hi, MIN(low) AS lo FROM daily_bars WHERE date >= ? "
+                               "GROUP BY symbol", c, params=(from_date,)).set_index("symbol")
+    return df["hi"], df["lo"]
+
+
 def bars_window(days: int = 260) -> pd.DataFrame:
     """All symbols over the most recent `days` trading dates (for snapshots / returns / 52-week range)."""
     with session() as c:
