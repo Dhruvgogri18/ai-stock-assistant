@@ -165,7 +165,7 @@ function submit(ta) { const text = ta.value.trim(); if (!text || S.busy) return;
 /* ------------------------------------------------------------------- views */
 // Full-page views (screener, watchlist, calendar, alerts) register themselves in window.Pages = { name: {show(arg), hide()} }
 // and render into <section id="name">. Chat is the default view.
-const PAGE_RE = /^#\/(screener|watchlist|calendar|alerts)(?:\/([\w-]+))?/;
+const PAGE_RE = /^#\/(screener|watchlist|calendar|alerts|company)(?:\/([^\/?#]+))?/;   // the argument may be an encoded symbol such as M%26M
 function leaveScreener() {
   document.querySelectorAll("section.page").forEach(s => { if (!s.hidden) window.Pages?.[s.id]?.hide(); s.hidden = true; });
   document.querySelectorAll("[data-go].active").forEach(b => b.classList.remove("active"));

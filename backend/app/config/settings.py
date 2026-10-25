@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     alerts_live_pause_sec: float = 0.3      # pause between per-symbol price calls, to stay inside broker rate limits
     alerts_live_max_symbols: int = 60       # most symbols looked up per poll
 
+    # ---- company fundamentals ----
+    fundamentals_refresh_cooldown_min: int = 30   # the company page's "load statements" button: minimum minutes between refreshes of one stock
+
     # ---- live prices (Angel One first, NSE bhavcopy as the fallback) ----
     prices_live: bool = True                # False = always use end-of-day bhavcopy
     prices_batch_pause_sec: float = 1.1     # minimum gap between Angel quote requests (shared by everything); check Angel's limits
@@ -65,31 +68,19 @@ class Settings(BaseSettings):
     prices_min_coverage: float = 0.95       # share of stocks that must have a fresh quote before screens switch to live prices
     prices_demand_window_sec: int = 600     # keep refreshing the whole market this long after the last screener/movers request
 
-    # Build the end-of-day market snapshot at startup (uses a lot of RAM; set false on small hosts)
-    warm_snapshot: bool = True
-
     # ---- product ----
     app_name: str = "Stock Research"
     user_name: str = ""
 
     # ---- LLM (any OpenAI-compatible gateway) ----
+    # Leave empty until paid API keys are configured (Grok / Claude / gateway)
     llm_api_key: str = ""
-    llm_base_url: str = "https://aigateway-api.godigitaltc.com/aigw/v1"
+    llm_base_url: str = ""
     llm_model: str = ""
     llm_fast_model: str = ""
-    # Free fallbacks, tried in order when the primary gateway is not configured or a call fails.
-    # Any OpenAI-compatible endpoint works. Defaults: Google Gemini, then Groq (both have free API keys).
-    fallback_llm_api_key: str = ""
-    fallback_llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
-    fallback_llm_model: str = "gemini-2.5-flash"
-    fallback_llm_fast_model: str = ""
-    fallback2_llm_api_key: str = ""
-    fallback2_llm_base_url: str = "https://api.groq.com/openai/v1"
-    fallback2_llm_model: str = "llama-3.3-70b-versatile"
-    fallback2_llm_fast_model: str = "llama-3.1-8b-instant"
     llm_timeout: float = 90.0
-    llm_max_tokens: int = 2000
-    max_tool_rounds: int = 4
+    llm_max_tokens: int = 1200
+    max_tool_rounds: int = 2  # fewer model calls per chat turn (cost control)
     router_enabled: bool = True
 
     # ---- LLM logging ----
@@ -105,15 +96,17 @@ class Settings(BaseSettings):
     session_db_path: str = "data/sessions.db"
 
     # ---- data providers: auto | db | indianapi | yfinance ----
-    data_provider: str = "auto"
+    # Demo default: local stock.db; live quotes still come from Angel One when configured
+    data_provider: str = "db"
     indianapi_key: str = ""
     indianapi_base: str = "https://stock.indianapi.in"
 
     # ---- NSE end-of-day market data (bhavcopy) ----
-    bhavcopy_auto_refresh: bool = True
+    # Demo: do not download or append more EOD data — use whatever is already in stock.db
+    bhavcopy_auto_refresh: bool = False
     bhavcopy_publish_after_ist: str = "18:30"
     bhavcopy_check_interval_min: int = 30
-    bhavcopy_startup_backfill_days: int = 30
+    bhavcopy_startup_backfill_days: int = 0
     # Stored as plain str so .env does not need JSON. Use commas or a single URL.
     bhavcopy_base_urls: str = "https://nsearchives.nseindia.com,https://archives.nseindia.com"
     nse_user_agent: str = (

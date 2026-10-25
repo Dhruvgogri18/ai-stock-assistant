@@ -35,6 +35,21 @@ CREATE TABLE IF NOT EXISTS financials (
     UNIQUE(symbol, period, period_type, statement, line_item)
 );
 
+-- When and from where each company's statements were fetched (financials rows carry no provenance themselves).
+CREATE TABLE IF NOT EXISTS fundamentals_status (
+    symbol             TEXT PRIMARY KEY,
+    fetched_at         TEXT,
+    source             TEXT,
+    currency           TEXT,
+    shares             REAL,                 -- shares outstanding at fetch time
+    price_at_fetch     REAL,
+    annual_periods     INTEGER DEFAULT 0,
+    quarterly_periods  INTEGER DEFAULT 0,
+    industry           TEXT,                 -- the provider's industry label (not the NSE master sector)
+    provider_sector    TEXT,                 -- the provider's sector label (a different taxonomy from companies.sector)
+    error              TEXT
+);
+
 CREATE TABLE IF NOT EXISTS ratios (
     symbol       TEXT PRIMARY KEY,
     name         TEXT,
@@ -132,14 +147,8 @@ def connect() -> Iterator[Any]:
     else:
         path = Path(settings.warehouse_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(str(path), timeout=60, check_same_thread=False)
+        conn = sqlite3.connect(str(path), check_same_thread=False)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA busy_timeout=60000")      # wait for other background writers instead of failing
-        try:
-            conn.execute("PRAGMA journal_mode=WAL")     # readers no longer block on the writer
-        except sqlite3.OperationalError:
-            pass
-        conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute("PRAGMA foreign_keys=ON")
         try:
             yield conn
@@ -288,6 +297,56 @@ def upsert_financial_rows(symbol: str, period: str, period_type: str, statement:
                    DO UPDATE SET value=excluded.value""",
                 (symbol.upper(), period, period_type, statement, line, val),
             )
+
+
+def get_financials_all(symbol: str) -> list[dict]:
+    """Every stored line for one company: statement, period_type, period, line_item, value."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT statement, period_type, period, line_item, value FROM financials WHERE symbol = ? ORDER BY period",
+            (symbol.upper(),)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def symbols_with_financials() -> list[str]:
+    """Every symbol that has annual income lines stored, whether or not a fundamentals_status record exists (older loads have none)."""
+    with connect() as conn:
+        return [r[0] for r in conn.execute("SELECT DISTINCT symbol FROM financials WHERE statement='income' AND period_type='annual' ORDER BY symbol")]
+
+
+def upsert_fundamentals_status(symbol: str, **f) -> None:
+    cols = ("fetched_at", "source", "currency", "shares", "price_at_fetch", "annual_periods", "quarterly_periods",
+            "industry", "provider_sector", "error")
+    vals = [f.get(c) for c in cols]
+    with connect() as conn:
+        conn.execute(
+            f"""INSERT INTO fundamentals_status(symbol, {", ".join(cols)}) VALUES(?{",?" * len(cols)})
+                ON CONFLICT(symbol) DO UPDATE SET {", ".join(f"{c}=excluded.{c}" for c in cols)}""",
+            [symbol.upper(), *vals])
+
+
+def get_fundamentals_status(symbol: str) -> dict | None:
+    with connect() as conn:
+        r = conn.execute("SELECT * FROM fundamentals_status WHERE symbol = ?", (symbol.upper(),)).fetchone()
+        return dict(r) if r else None
+
+
+def list_fundamentals_status() -> list[dict]:
+    with connect() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM fundamentals_status ORDER BY symbol").fetchall()]
+
+
+def ensure_company(symbol: str, name: str = "") -> None:
+    """Create the company row if it does not exist. Never changes an existing row (the NSE master owns name and sector)."""
+    with connect() as conn:
+        conn.execute("INSERT INTO companies(symbol, name, updated_at) VALUES(?,?,?) ON CONFLICT(symbol) DO NOTHING",
+                     (symbol.upper(), name or None, utc_now()))
+
+
+def set_company_industry(symbol: str, industry: str) -> None:
+    """Record the provider's industry without touching the NSE master's name or sector."""
+    with connect() as conn:
+        conn.execute("UPDATE companies SET industry = COALESCE(NULLIF(industry, ''), ?) WHERE symbol = ?", (industry, symbol.upper()))
 
 
 def upsert_shareholding(symbol: str, period: str, holders: dict[str, float | None]) -> None:

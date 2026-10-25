@@ -60,7 +60,7 @@ interrupted `--days 400` backfill), not only after the newest stored date.
 backend/app/
   main.py                      app + routers + static frontend (no logic)
   config/settings.py           all env settings (absolute .env path)
-  routers/                     session_router (chat, status, LLM logs) · research_router (direct data, watchlist) · screener_router · alerts_router (alerts, notifications, calendar, watchlist view)
+  routers/                     session_router (chat, status, LLM logs) · research_router (direct data, watchlist) · screener_router · alerts_router (alerts, notifications, calendar, watchlist view) · company_router · prices_router
   schemas/                     pydantic request/response models
   repositories/                session_repository · llm_call_repository · watchlist_repository · screener_repository · alert_repository · warehouse (market data)
   services/
@@ -70,9 +70,10 @@ backend/app/
     data/                      service (providers + fallback chain) · bhavcopy (download/schedule) · market_data (movers, quote, history)
                                · rag · providers/{db,indian_api,yfinance}
     screener/                  catalog (metrics + curated screeners) · engine (run a definition over all NSE stocks)
+    fundamentals/              loader (provider statements -> warehouse) · compute (results + ratios) · peers · service (company page)
     alerts/                    rules (breakout presets, results classifier; pure) · engine (create, check_all, status, background loop)
     events/                    calendar (confirmed warehouse events + labelled provider estimates)
-frontend/                      index.html · styles.css · app.js · screener.js/.css · workspace.js/.css (watchlist, calendar, alerts) (no build step)
+frontend/                      index.html · styles.css · app.js · screener.js/.css · workspace.js/.css (watchlist, calendar, alerts) · company.js/.css (no build step)
 tests/                         fake-gateway tests of the whole turn + logging
 ```
 
@@ -117,7 +118,29 @@ Add Phase 2/3 by adding routes and nodes (e.g. `event_radar`, `fno`) and one edg
 | `GET /api/notifications` · `/unread-count` · `POST /read` · `DELETE /{id}` | the alert inbox |
 | `GET /api/calendar?days=&symbols=` | upcoming results / dividend dates (defaults to the watchlist) |
 | `GET /api/watchlist/overview` · `GET /api/symbols/search?q=` | watchlist table (live or end-of-day price per row); symbol typeahead |
+| `GET /api/company/{symbol}` · `/results?period=` · `/statements?kind=&period=` · `/peers` · `POST /refresh` | company page: overview + ratios, results, full statements, peer comparison, on-demand statement load |
 | `GET /api/prices/status` | where prices come from now: live / eod / failing / unconfigured, coverage, backoff |
+
+## Company page, statements, ratios and peers
+
+`#/company/<SYMBOL>` (linked from the watchlist, screener, calendar and alerts) has Overview, Results (annual/quarterly chart and
+table with growth and TTM), Statements (full income statement, balance sheet and cash flow, annual and quarterly), Ratios and Peers.
+
+- **Where the data comes from:** `services/fundamentals/loader.py` fetches every line of the six statements from yfinance
+  (unofficial, rate limited) and stores them in `financials` under the provider's own labels (nothing renamed, NaN skipped, never stored
+  as zero). `fundamentals_status` records when/where each company was fetched. Non-INR reports are refused. The provider's sector never
+  overwrites the NSE master's sector or name.
+- **Loading it:** the company page has a "Load statements now" / "Refresh" button (one refresh at a time, `FUNDAMENTALS_REFRESH_COOLDOWN_MIN`
+  between refreshes of one stock). For many stocks run `python -m scripts.load_financials --dry-run 2`, then `--top 500` (resumable,
+  `--pause` between stocks; run it yourself, it needs the network). Loading also refreshes the `ratios` row, so the screener's
+  fundamental filters and the chat's ratios tool grow with every stock loaded.
+- **Ratios are computed, not copied** (`compute.py`): each has its formula, inputs, period and basis (P/E uses TTM EPS when four
+  consecutive quarters exist, else the latest annual). A figure that cannot be computed is blank with a reason (loss-making P/E,
+  missing inputs). Banks and financial companies get no ROCE, current ratio, debt/equity, interest cover or EV/EBITDA.
+  Stocks from the older loader (income lines only, no share count) show the provider's own market cap, labelled as such.
+- **Peers:** same NSE sector (the provider's sector only when the stock has none), restricted to stocks with statements stored, ordered by
+  market-cap closeness, with the peer median and the stock's rank. The page says how many stocks in the sector have no data yet.
+- Data is yfinance's: typically about 4 annual and 5 quarterly periods, so growth CAGRs span about 3 years, not 5.
 
 ## Live prices (Angel One first, bhavcopy as the fallback)
 

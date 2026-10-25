@@ -88,7 +88,7 @@ function watchlistBody(d) {
   const eodTag = r => d.mode !== "eod" && r.price_source === "eod" ? `<span class="ws-eod" title="Live price not available; showing the last close">EOD</span>` : "";
   const rows = d.rows.map(r => r.missing
     ? `<tr><td><div class="ws-co">${av(r.symbol)}<span>${esc(r.symbol)}<small>No stored prices for this symbol</small></span></div></td><td class="num" colspan="4">—</td>${rowActions(r.symbol)}</tr>`
-    : `<tr><td><div class="ws-co">${av(r.symbol)}<span>${esc(r.name || r.symbol)}<small>${esc(r.symbol)}${r.Sector ? " · " + esc(r.Sector) : ""}</small></span></div></td>
+    : `<tr><td><div class="ws-co">${av(r.symbol)}<span><a class="co-link" href="#/company/${encodeURIComponent(r.symbol)}">${esc(r.name || r.symbol)}</a><small>${esc(r.symbol)}${r.Sector ? " · " + esc(r.Sector) : ""}</small></span></div></td>
         <td class="num"><b>${r.LTP != null ? n2(r.LTP) : "—"}</b> ${eodTag(r)}</td>
         <td class="num ${cls(r["Day Change %"])}">${r["Day Change %"] != null ? sgn(r["Day Change %"]) + "%" : "—"}</td>
         <td class="num ${cls(r["1M Return %"])}">${r["1M Return %"] != null ? sgn(r["1M Return %"]) + "%" : "—"}</td>
@@ -147,7 +147,7 @@ function renderCalendar() {
 }
 function eventRow(e) {
   const win = e.date_end ? ` <small>(expected ${esc(dayShort(e.date))} to ${esc(dayShort(e.date_end))})</small>` : "";
-  return `<div class="ws-ev">${av(e.symbol)}<div class="ws-ev-main"><b>${esc(e.name)}</b><small>${esc(e.symbol)}${e.title ? " · " + esc(e.title) : ""}</small></div>
+  return `<div class="ws-ev">${av(e.symbol)}<div class="ws-ev-main"><b><a class="co-link" href="#/company/${encodeURIComponent(e.symbol)}">${esc(e.name)}</a></b><small>${esc(e.symbol)}${e.title ? " · " + esc(e.title) : ""}</small></div>
     <span class="ws-pill t-${esc(e.type)}">${esc(e.label)}</span>
     <span class="ws-est ${e.estimated ? "est" : "ok"}" title="${esc(e.source)}">${e.estimated ? "Estimated" : "Confirmed"}</span>${win}
     <span class="sp"></span>${e.type === "results" ? `<button class="ws-ic" data-newalert="${esc(e.symbol)}" data-kind="result" title="Alert me when ${esc(e.symbol)} announces results">${icon("bell")}</button>` : ""}
@@ -189,7 +189,7 @@ function inboxHTML() {
     return `<article class="ws-note ${n.read ? "" : "unread"}" data-note="${n.id}">
       <span class="ws-note-ic k-${esc(n.kind)}">${icon(n.kind === "result" ? "chat" : "chart")}</span>
       <div class="ws-note-main"><h4>${esc(n.title)}<span class="dot"></span></h4><p>${esc(n.body)}</p>
-        <div class="ws-note-meta"><span>${esc(ago(n.created_at))}</span><span class="ws-sym">${esc(n.symbol)}</span>${n.payload?.mode === "live" ? `<span class="ws-tag live" title="${esc(n.payload.source || "")} at ${esc(n.payload.at || "")}">Live price</span>` : n.payload?.mode === "touch" ? `<span class="ws-tag" title="Judged from the day's high or low after the close">Day high/low</span>` : ""}
+        <div class="ws-note-meta"><span>${esc(ago(n.created_at))}</span><a class="ws-sym co-link" href="#/company/${encodeURIComponent(n.symbol)}">${esc(n.symbol)}</a>${n.payload?.mode === "live" ? `<span class="ws-tag live" title="${esc(n.payload.source || "")} at ${esc(n.payload.at || "")}">Live price</span>` : n.payload?.mode === "touch" ? `<span class="ws-tag" title="Judged from the day's high or low after the close">Day high/low</span>` : ""}
           ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">Open filing</a>` : ""}
           <button data-ask="${esc(n.kind === "result" ? `Summarise ${n.symbol}'s latest results` : `What changed for ${n.symbol} recently? Show its chart with the 20 and 50 day EMA.`)}">Ask about this</button>
           ${n.read ? "" : `<button data-read="${n.id}">Mark read</button>`}<button data-delnote="${n.id}" class="danger">Delete</button></div></div></article>`;
@@ -297,6 +297,7 @@ function onChange(e) {
   const tg = e.target.closest?.("[data-toggle]");
   if (tg) api("/alerts/" + tg.dataset.toggle, { method: "PATCH", body: { active: tg.checked } }).then(loadAlerts).catch(x => { toast(x.message); loadAlerts(); });
 }
+window.WS = { openAlertDialog };
 document.addEventListener("DOMContentLoaded", () => {
   for (const id of ["watchlist", "calendar", "alerts"]) { const r = $root(id); r.addEventListener("click", onClick); r.addEventListener("change", onChange); }
 });

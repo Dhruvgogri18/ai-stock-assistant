@@ -1,0 +1,50 @@
+# Render Blueprint — data from stock.db + Angel One; LLM empty until paid keys
+services:
+  - type: web
+    name: stock-research
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_FAST_MODEL
+        sync: false
+      - key: MAX_TOOL_ROUNDS
+        value: "2"
+      - key: ROUTER_ENABLED
+        value: "true"
+      - key: LLM_MAX_TOKENS
+        value: "1200"
+      - key: DB_DOWNLOAD_URL
+        sync: false
+      - key: DATA_PROVIDER
+        value: db
+      - key: PRICES_LIVE
+        value: "true"
+      - key: BHAVCOPY_AUTO_REFRESH
+        value: "false"
+      - key: BHAVCOPY_STARTUP_BACKFILL_DAYS
+        value: "0"
+      - key: ANGEL_API_KEY
+        sync: false
+      - key: ANGEL_CLIENT_ID
+        sync: false
+      - key: ANGEL_PASSWORD
+        sync: false
+      - key: ANGEL_TOTP_SECRET
+        sync: false
+      - key: PRICES_BATCH_PAUSE_SEC
+        value: "1.1"
+      - key: ALERTS_LIVE_INTERVAL_SEC
+        value: "120"
+      - key: INDIANAPI_KEY
+        sync: false
+      - key: CORS_ALLOW_ORIGINS
+        value: "*"
+      - key: APP_NAME
+        value: Stock Research

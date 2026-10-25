@@ -17,12 +17,13 @@ from backend.app.config.settings import settings
 from backend.app.repositories import warehouse
 from backend.app.routers.market_router import router as market_router
 from backend.app.routers.alerts_router import router as alerts_router
+from backend.app.routers.company_router import router as company_router
 from backend.app.routers.prices_router import router as prices_router
 from backend.app.routers.research_router import router as research_router
 from backend.app.routers.screener_router import router as screener_router
 from backend.app.routers.session_router import router as session_router
 from backend.app.services.alerts import engine as alert_engine, live as alert_live
-from backend.app.services.data import angel_board, bhavcopy, live_prices, market_data
+from backend.app.services.data import bhavcopy, live_prices, market_data
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
 
@@ -42,12 +43,10 @@ async def lifespan(_: FastAPI):
     except Exception as e:  # noqa: BLE001
         print("warehouse init:", e)
     # Build the end-of-day snapshot in the background (slow on a large bars table) so the first Screener visit is fast.
-    if settings.warm_snapshot:
-        threading.Thread(target=_warm_snapshot, daemon=True, name="snapshot-warm").start()
+    threading.Thread(target=_warm_snapshot, daemon=True, name="snapshot-warm").start()
     alert_engine.loop.start(settings.alerts_check_interval_min)
     alert_live.loop.start(settings.alerts_live_interval_sec)
     live_prices.refresher.start()
-    angel_board.start_if_needed()      # no stock.db? build the market table from Angel One
     # Keep NSE end-of-day data fresh: catches up on startup, then re-checks after each market close.
     # (No provider API calls happen at startup, so a restart never spends IndianAPI quota.)
     if settings.bhavcopy_auto_refresh:
@@ -57,7 +56,6 @@ async def lifespan(_: FastAPI):
     alert_engine.loop.stop()
     alert_live.loop.stop()
     live_prices.refresher.stop()
-    angel_board.stop()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -74,5 +72,6 @@ app.include_router(market_router, prefix="/api")
 app.include_router(research_router, prefix="/api")
 app.include_router(screener_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
+app.include_router(company_router, prefix="/api")
 app.include_router(prices_router, prefix="/api")
 app.mount("/", StaticFiles(directory=FRONTEND, html=True), name="web")

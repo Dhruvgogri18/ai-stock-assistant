@@ -198,6 +198,18 @@ def symbol_bars(symbol: str, limit: int = 1300) -> list[dict]:
     return [dict(r) for r in reversed(rows)]
 
 
+def top_by_turnover(n: int, sessions: int = 60) -> list[str]:
+    """The n most liquid symbols (highest average value traded over the last `sessions` stored sessions)."""
+    with session() as c:
+        dates = [r[0] for r in c.execute("SELECT DISTINCT date FROM daily_bars ORDER BY date DESC LIMIT ?", (sessions,))]
+        if not dates:
+            return []
+        marks = ",".join("?" for _ in dates)
+        rows = c.execute(f"SELECT symbol FROM daily_bars WHERE date IN ({marks}) GROUP BY symbol "
+                         "ORDER BY AVG(turnover_cr) DESC LIMIT ?", [*dates, n]).fetchall()
+        return [r[0] for r in rows]
+
+
 def company_map() -> dict[str, dict]:
     with session() as c:
         return {r["symbol"]: dict(r) for r in c.execute("SELECT symbol,name,sector,isin FROM companies")}

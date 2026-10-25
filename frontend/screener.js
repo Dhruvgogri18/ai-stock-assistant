@@ -43,7 +43,7 @@ function cell(col, r) {
     default: return `<td class="num">${n2(v)}</td>`;
   }
 }
-const nameCell = r => `<td><div class="scr-co"><i style="background:${A().colorOf(r.symbol)}">${esc(r.symbol.slice(0, 2))}</i><span>${esc(r.name || r.symbol)}<small>${esc(r.symbol)}</small></span></div></td>`;
+const nameCell = r => `<td><div class="scr-co"><i style="background:${A().colorOf(r.symbol)}">${esc(r.symbol.slice(0, 2))}</i><span><a class="co-link" href="#/company/${encodeURIComponent(r.symbol)}">${esc(r.name || r.symbol)}</a><small>${esc(r.symbol)}</small></span></div></td>`;
 
 /* -------------------------------------------------------------------- home */
 async function loadHome(force) {
